@@ -9,3 +9,12 @@ AI generated receipts of build instructions
   With file endings name: 
 
 .txt
+
+
+### local host application
+### local run development
+### local security runs
+
+--------
+
+### virtual machine run local machine instance applications
