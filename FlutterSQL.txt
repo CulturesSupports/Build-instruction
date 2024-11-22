@@ -1,0 +1,218 @@
+Creating a Flutter application that integrates with the GitHub API to search for SQL queries can be a fun and educational project. Below, I’ll guide you through the steps to set up a basic Flutter app that uses the GitHub API to search for repositories containing SQL queries.
+
+
+Prerequisites
+
+
+	1.	Flutter SDK: Make sure you have Flutter installed on your machine. You can download it from the official Flutter website.
+	2.	GitHub API Token: You will need a GitHub Personal Access Token to make authenticated requests to the GitHub API. You can generate one from your GitHub account settings.
+
+
+Step 1: Set Up Your Flutter Project
+
+
+	1.	Open your terminal and run the following command to create a new Flutter project:
+flutter create github_sql_search
+	2.	Navigate to the project directory:
+cd github_sql_search
+
+
+Step 2: Add Dependencies
+
+Open the `pubspec.yaml` file and add the following dependencies:
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  flutter_dotenv: ^5.0.2
+Run the following command to install the dependencies:
+
+flutter pub get
+
+Step 3: Configure Environment Variables
+
+Create a `.env` file in the root of your project and add your GitHub token:
+
+GITHUB_TOKEN=your_github_token
+
+Step 4: Create the API Service
+
+Create a new directory `lib/services` and a file `github_service.dart` inside it. Add the following code to handle API requests:
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+class GithubService {
+  final String _baseUrl = 'https://api.github.com';
+  final String _token = dotenv.env['GITHUB_TOKEN']!;
+
+  Future<List<dynamic>> searchSqlQueries(String query) async {
+    final url = '$_baseUrl/search/code?q=$query+language:sql';
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Authorization': 'token $_token',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['items'];
+    } else {
+      throw Exception('Failed to load SQL queries');
+    }
+  }
+}
+
+Step 5: Create the UI
+
+Open the `lib/main.dart` file and replace its content with the following code to create a simple UI for searching SQL queries:
+
+import 'package:flutter/material.dart';
+import 'package:github_sql_search/services/github_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  await dotenv.load(fileName: ".env");
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'GitHub SQL Search',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: SearchPage(),
+    );
+  }
+}
+
+class SearchPage extends StatefulWidget {
+  @override
+  _SearchPageState createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TextEditingController _controller = TextEditingController();
+  final GithubService _githubService = GithubService();
+  List<dynamic> _results = [];
+
+  Future<void> _searchSqlQueries() async {
+    final query = _controller.text;
+    if (query.isNotEmpty) {
+      try {
+        final results = await _githubService.searchSqlQueries(query);
+        setState(() {
+          _results = results;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('GitHub SQL Search'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                labelText: 'Search SQL queries',
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: _searchSqlQueries,
+                ),
+              ),
+            ),
+            SizedBox(height: 16.0),
+            Expanded(
+              child: _results.isEmpty
+                  ? Center(child: Text('No results found'))
+                  : ListView.builder(
+                      itemCount: _results.length,
+                      itemBuilder: (context, index) {
+                        final result = _results[index];
+                        return ListTile(
+                          title: Text(result['repository']['name']),
+                          subtitle: Text(result['path']),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DetailPage(result: result),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DetailPage extends StatelessWidget {
+  final dynamic result;
+
+  DetailPage({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(result['repository']['name']),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: ${result['path']}'),
+            SizedBox(height: 16.0),
+            Text('Content:'),
+            SizedBox(height: 8.0),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(result['content'] ?? 'No content available'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Step 6: Run the Application
+
+Run your Flutter application using the following command:
+
+flutter run
+
+Explanation
+
+
+	1.	Dependencies: We use the `http` package for making HTTP requests and `flutter_dotenv` for managing environment variables.
+	2.	API Service: The `GithubService` class handles the API requests to search for SQL queries.
+	3.	UI: The `SearchPage` widget contains a text field and a search button. When the button is pressed, it calls the `searchSqlQueries` method and displays the results.
+	4.	Detail Page: The `DetailPage` widget shows the details of a selected search result, including the file path and content.
+
+This is a basic implementation. You can expand it by adding more features, such as pagination, error handling, and a more sophisticated UI.
